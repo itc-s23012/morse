@@ -6,6 +6,8 @@ chrome.runtime.onInstalled.addListener(() => {
     windowMs: 700,
     keyValue: ' '
   });
+  
+  console.log('モールス風タップカウンター拡張機能がインストールされました');
 });
 
 // コンテンツスクリプトからのメッセージを処理
@@ -13,6 +15,17 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
   if (message.action === 'sendSignal') {
     // Firestoreにデータを送信
     handleFirestoreSignal(message.data);
+    
+    // システム通知を表示（オプション）
+    if (message.showNotification) {
+      chrome.notifications.create({
+        type: 'basic',
+        iconUrl: 'data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iNDgiIGhlaWdodD0iNDgiIHZpZXdCb3g9IjAgMCA0OCA0OCIgZmlsbD0ibm9uZSIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj4KPGNpcmNsZSBjeD0iMjQiIGN5PSIyNCIgcj0iMjAiIGZpbGw9IiMyMmQzZWUiLz4KPHR0ZXh0IHg9IjI0IiB5PSIzMCIgZm9udC1mYW1pbHk9InNhbnMtc2VyaWYiIGZvbnQtc2l6ZT0iMTYiIGZvbnQtd2VpZ2h0PSI4MDAiIGZpbGw9IndoaXRlIiB0ZXh0LWFuY2hvcj0ibWlkZGxlIj4ke21lc3NhZ2UuZGF0YS52YWx1ZX08L3RleHQ+Cjwvc3ZnPgo=',
+        title: 'モールスタップ結果',
+        message: `結果: ${message.data.value} (${message.originalCount || message.data.value}回タップ)`
+      });
+    }
+    
     sendResponse({ success: true });
   }
 });
