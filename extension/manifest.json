@@ -5,7 +5,8 @@
   "description": "どのサイトでもモールス風タップでリアルタイム数字変換",
   "permissions": [
     "activeTab",
-    "storage"
+    "storage",
+    "notifications"
   ],
   "host_permissions": [
     "https://*/*",

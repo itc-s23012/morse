@@ -6,6 +6,8 @@ chrome.runtime.onInstalled.addListener(() => {
     windowMs: 700,
     keyValue: ' '
   });
+  
+  console.log('モールス風タップカウンター拡張機能がインストールされました');
 });
 
 // コンテンツスクリプトからのメッセージを処理
@@ -14,6 +16,7 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
     // Firestoreにデータを送信
     handleFirestoreSignal(message.data);
     
+
     // システム通知を表示（常時有効）
     if (message.showNotification) {
       const originalCount = message.originalCount || message.data.value;
