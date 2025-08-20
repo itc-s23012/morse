@@ -1,12 +1,12 @@
 "use client";
 
-import { useEffect, useState, useRef } from "react";
+import { useEffect, useState, useRef, useCallback } from "react";
 import { db } from "../lib/firebase";
-import { collection, addDoc, onSnapshot, serverTimestamp, getDocs, deleteDoc } from "firebase/firestore";
+import { collection, addDoc, onSnapshot, serverTimestamp, getDocs, deleteDoc, Timestamp } from "firebase/firestore";
 
 export default function Home() {
   const [tapCount, setTapCount] = useState(0);
-  const [signals, setSignals] = useState<{id: string, value: number, createdAt: any, userId?: string}[]>([]);
+  const [signals, setSignals] = useState<{id: string, value: number, createdAt: Timestamp | null, userId?: string}[]>([]);
   const [windowMs, setWindowMs] = useState(700);
   const [keyValue, setKeyValue] = useState(" ");
   const [status, setStatus] = useState("待機中");
@@ -54,7 +54,16 @@ export default function Home() {
     return () => unsubscribe();
   }, []);
 
-  const beginWindow = () => {
+  // Firestore に送信
+  const sendSignal = useCallback(async (value: number) => {
+    await addDoc(collection(db, "signals"), {
+      value,
+      userId,
+      createdAt: serverTimestamp(),
+    });
+  }, [userId]);
+
+  const beginWindow = useCallback(() => {
     if (!startTsRef.current) startTsRef.current = Date.now();
     const endTs = startTsRef.current + windowMs;
     
@@ -71,15 +80,9 @@ export default function Home() {
     
     if (animationRef.current) cancelAnimationFrame(animationRef.current);
     animationRef.current = requestAnimationFrame(tick);
-  };
+  }, [windowMs]);
 
-  const scheduleFinalize = () => {
-    if (timerRef.current) clearTimeout(timerRef.current);
-    timerRef.current = setTimeout(finalize, windowMs);
-    beginWindow();
-  };
-
-  const finalize = async () => {
+  const finalize = useCallback(async () => {
     if (timerRef.current) clearTimeout(timerRef.current);
     if (animationRef.current) cancelAnimationFrame(animationRef.current);
     
@@ -106,9 +109,15 @@ export default function Home() {
     
     setStatus("待機中");
     setTapCount(0);
-  };
+  }, [tapCount, sendSignal]);
 
-  const registerTap = (source: string = "tap") => {
+  const scheduleFinalize = useCallback(() => {
+    if (timerRef.current) clearTimeout(timerRef.current);
+    timerRef.current = setTimeout(finalize, windowMs);
+    beginWindow();
+  }, [windowMs, finalize, beginWindow]);
+
+  const registerTap = useCallback((source: string = "tap") => {
     if (!timerRef.current) {
       // new burst
       setTapCount(1);
@@ -119,7 +128,7 @@ export default function Home() {
       setTapCount(prev => prev + 1);
     }
     scheduleFinalize();
-  };
+  }, [scheduleFinalize]);
 
   // キー入力を検知
   useEffect(() => {
@@ -136,16 +145,7 @@ export default function Home() {
 
     window.addEventListener("keydown", handleKeyDown, { passive: false });
     return () => window.removeEventListener("keydown", handleKeyDown);
-  }, [keyValue]);
-
-  // Firestore に送信
-  const sendSignal = async (value: number) => {
-    await addDoc(collection(db, "signals"), {
-      value,
-      userId,
-      createdAt: serverTimestamp(),
-    });
-  };
+  }, [keyValue, registerTap]);
 
   const clearHistory = () => {
     setOutputNumber("–");
