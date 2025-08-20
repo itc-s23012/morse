@@ -141,7 +141,7 @@ class MorseTapCounter {
         timestamp: Date.now()
       },
       originalCount: this.tapCount,
-      showNotification: false // システム通知は無効（トーストで十分）
+      showNotification: true // 常にシステム通知を表示
     });
   }
 

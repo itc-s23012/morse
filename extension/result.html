@@ -1,0 +1,88 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <title>モールスタップ結果</title>
+  <style>
+    body {
+      margin: 0;
+      padding: 20px;
+      background: linear-gradient(135deg, #22d3ee, #60a5fa);
+      color: white;
+      font-family: ui-sans-serif, system-ui, sans-serif;
+      text-align: center;
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+      align-items: center;
+      height: calc(100vh - 40px);
+      overflow: hidden;
+    }
+    
+    .result-number {
+      font-size: 48px;
+      font-weight: 900;
+      margin-bottom: 8px;
+      text-shadow: 0 4px 8px rgba(0, 0, 0, 0.3);
+    }
+    
+    .result-detail {
+      font-size: 14px;
+      opacity: 0.9;
+      font-weight: 600;
+    }
+    
+    .close-timer {
+      position: absolute;
+      bottom: 10px;
+      right: 10px;
+      font-size: 12px;
+      opacity: 0.7;
+    }
+    
+    @keyframes fadeIn {
+      from { opacity: 0; transform: scale(0.8); }
+      to { opacity: 1; transform: scale(1); }
+    }
+    
+    body {
+      animation: fadeIn 0.3s ease-out;
+    }
+  </style>
+</head>
+<body>
+  <div class="result-number" id="resultNumber">-</div>
+  <div class="result-detail" id="resultDetail">読み込み中...</div>
+  <div class="close-timer" id="closeTimer">3秒で閉じます</div>
+
+  <script>
+    // 結果データを取得して表示
+    chrome.storage.local.get(['lastResult'], (result) => {
+      if (result.lastResult) {
+        const data = result.lastResult;
+        document.getElementById('resultNumber').textContent = data.value;
+        
+        if (data.originalCount > 5) {
+          document.getElementById('resultDetail').textContent = 
+            `${data.originalCount}回タップ → ${data.value}に変換`;
+        } else {
+          document.getElementById('resultDetail').textContent = 
+            `${data.originalCount}回タップ`;
+        }
+      }
+    });
+    
+    // カウントダウン表示
+    let countdown = 3;
+    const timer = setInterval(() => {
+      countdown--;
+      if (countdown > 0) {
+        document.getElementById('closeTimer').textContent = `${countdown}秒で閉じます`;
+      } else {
+        clearInterval(timer);
+        window.close();
+      }
+    }, 1000);
+  </script>
+</body>
+</html>
