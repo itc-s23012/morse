@@ -11,13 +11,12 @@ class MorseTapCounter {
     
     // Firebase設定（実際のFirebase設定を使用）
     this.firebaseConfig = {
-      // ここに実際のFirebase設定を入れる
-      apiKey: "your-api-key",
-      authDomain: "your-project.firebaseapp.com",
-      projectId: "your-project-id",
-      storageBucket: "your-project.appspot.com",
-      messagingSenderId: "123456789",
-      appId: "your-app-id"
+      apiKey: "AIzaSyC-lPLjd6RR0YAQ5T_iC3bVEVpM4Z38Jpw",
+      authDomain: "morse-ae272.firebaseapp.com",
+      projectId: "morse-ae272",
+      storageBucket: "morse-ae272.firebasestorage.app",
+      messagingSenderId: "369151380978",
+      appId: "1:369151380978:web:16573047f1019ed966af6b"
     };
     
     this.init();

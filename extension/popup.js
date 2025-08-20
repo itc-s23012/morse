@@ -71,11 +71,11 @@ async function sendToFirestore(data) {
     console.log('Sending to Firestore:', data);
     
     // Web APIアプローチ（Firebase REST API使用）
-    const response = await fetch(`https://firestore.googleapis.com/v1/projects/YOUR_PROJECT_ID/databases/(default)/documents/signals`, {
+    const response = await fetch(`https://firestore.googleapis.com/v1/projects/morse-ae272/databases/(default)/documents/signals`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
-        'Authorization': 'Bearer YOUR_ACCESS_TOKEN'
+        'X-Firebase-AppCheck': 'undefined'
       },
       body: JSON.stringify({
         fields: {

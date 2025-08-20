@@ -40,7 +40,7 @@ async function handleFirestoreSignal(data) {
 
 async function sendToFirestoreAPI(data) {
   // 実際のFirebase設定を使用
-  const projectId = 'your-project-id';
+  const projectId = 'morse-ae272';
   
   return fetch(`https://firestore.googleapis.com/v1/projects/${projectId}/databases/(default)/documents/signals`, {
     method: 'POST',
