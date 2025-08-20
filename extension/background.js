@@ -13,6 +13,30 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
   if (message.action === 'sendSignal') {
     // Firestoreにデータを送信
     handleFirestoreSignal(message.data);
+    
+    // システム通知を表示（常時有効）
+    if (message.showNotification) {
+      const originalCount = message.originalCount || message.data.value;
+      const notificationMessage = originalCount > 5 
+        ? `結果: ${message.data.value} (${originalCount}回 → 5に変換)`
+        : `結果: ${message.data.value} (${originalCount}回タップ)`;
+        
+      chrome.notifications.create({
+        type: 'basic',
+        iconUrl: createResultIcon(message.data.value),
+        title: '🎯 モールスタップ結果',
+        message: notificationMessage
+      }, (notificationId) => {
+        // 3秒後に通知を自動削除
+        setTimeout(() => {
+          chrome.notifications.clear(notificationId);
+        }, 3000);
+      });
+      
+      // 追加：小さな結果ウィンドウを表示
+      showResultWindow(message.data.value, originalCount);
+    }
+    
     sendResponse({ success: true });
   }
 });
@@ -55,5 +79,55 @@ async function sendToFirestoreAPI(data) {
         createdAt: { timestampValue: new Date(data.timestamp).toISOString() }
       }
     })
+  });
+}
+
+// 結果に応じたアイコンを生成
+function createResultIcon(value) {
+  // SVGアイコンをBase64エンコード
+  const svg = `
+    <svg width="48" height="48" viewBox="0 0 48 48" fill="none" xmlns="http://www.w3.org/2000/svg">
+      <circle cx="24" cy="24" r="20" fill="#22d3ee"/>
+      <text x="24" y="32" font-family="sans-serif" font-size="18" font-weight="800" fill="white" text-anchor="middle">${value}</text>
+    </svg>
+  `;
+  return 'data:image/svg+xml;base64,' + btoa(svg);
+}
+
+// 小さな結果ウィンドウを表示
+function showResultWindow(value, originalCount) {
+  const resultData = {
+    value: value,
+    originalCount: originalCount,
+    timestamp: Date.now()
+  };
+  
+  // 結果データを保存（ポップアップで使用）
+  chrome.storage.local.set({ lastResult: resultData });
+  
+  // 既存のresultWindowがあるかチェック
+  chrome.windows.getAll({ type: 'popup' }, (windows) => {
+    // 既存の結果ウィンドウを閉じる
+    windows.forEach(window => {
+      if (window.url && window.url.includes('result.html')) {
+        chrome.windows.remove(window.id);
+      }
+    });
+    
+    // 新しい結果ウィンドウを作成
+    chrome.windows.create({
+      url: 'result.html',
+      type: 'popup',
+      width: 300,
+      height: 200,
+      left: 100,
+      top: 100,
+      focused: false
+    }, (window) => {
+      // 3秒後に自動閉じ
+      setTimeout(() => {
+        chrome.windows.remove(window.id);
+      }, 3000);
+    });
   });
 }

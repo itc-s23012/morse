@@ -120,6 +120,9 @@ class MorseTapCounter {
     
     this.updateIndicator(message);
     
+    // トースト通知を表示
+    this.showResultToast(n, this.tapCount);
+    
     // 3秒後に非表示
     setTimeout(() => {
       this.updateIndicator("待機中");
@@ -136,7 +139,9 @@ class MorseTapCounter {
         value,
         userId: this.userId,
         timestamp: Date.now()
-      }
+      },
+      originalCount: this.tapCount,
+      showNotification: true // 常にシステム通知を表示
     });
   }
 
@@ -185,6 +190,103 @@ class MorseTapCounter {
     if (indicator) {
       indicator.remove();
     }
+  }
+
+  showResultToast(result, originalCount) {
+    // 既存のトーストがあれば削除
+    const existingToast = document.getElementById('morse-result-toast');
+    if (existingToast) {
+      existingToast.remove();
+    }
+
+    // トースト要素を作成
+    const toast = document.createElement('div');
+    toast.id = 'morse-result-toast';
+    toast.style.cssText = `
+      position: fixed;
+      top: 50px;
+      left: 50%;
+      transform: translateX(-50%) translateY(-100px);
+      background: linear-gradient(135deg, #22d3ee, #60a5fa);
+      color: #ffffff;
+      padding: 16px 24px;
+      border-radius: 16px;
+      font-family: ui-sans-serif, system-ui, sans-serif;
+      font-size: 24px;
+      font-weight: 800;
+      z-index: 1000000;
+      box-shadow: 0 20px 40px rgba(34, 211, 238, 0.4);
+      backdrop-filter: blur(10px);
+      border: 2px solid rgba(255, 255, 255, 0.2);
+      text-align: center;
+      min-width: 200px;
+      animation: morseToastSlide 0.5s ease-out forwards;
+      pointer-events: none;
+    `;
+
+    // アニメーションキーフレームを追加
+    if (!document.getElementById('morse-toast-style')) {
+      const style = document.createElement('style');
+      style.id = 'morse-toast-style';
+      style.textContent = `
+        @keyframes morseToastSlide {
+          0% {
+            transform: translateX(-50%) translateY(-100px);
+            opacity: 0;
+          }
+          100% {
+            transform: translateX(-50%) translateY(0);
+            opacity: 1;
+          }
+        }
+        @keyframes morseToastFadeOut {
+          0% {
+            transform: translateX(-50%) translateY(0);
+            opacity: 1;
+          }
+          100% {
+            transform: translateX(-50%) translateY(-50px);
+            opacity: 0;
+          }
+        }
+      `;
+      document.head.appendChild(style);
+    }
+
+    // コンテンツを設定
+    const resultText = document.createElement('div');
+    resultText.style.cssText = `
+      font-size: 36px;
+      margin-bottom: 4px;
+    `;
+    resultText.textContent = result;
+
+    const detailText = document.createElement('div');
+    detailText.style.cssText = `
+      font-size: 14px;
+      opacity: 0.9;
+      font-weight: 600;
+    `;
+    
+    if (originalCount > 5) {
+      detailText.innerHTML = `${originalCount}回タップ → <strong>${result}</strong> に変換`;
+    } else {
+      detailText.innerHTML = `<strong>${originalCount}回タップ</strong>`;
+    }
+
+    toast.appendChild(resultText);
+    toast.appendChild(detailText);
+    document.body.appendChild(toast);
+
+    // 3秒後にフェードアウト
+    setTimeout(() => {
+      toast.style.animation = 'morseToastFadeOut 0.3s ease-out forwards';
+      setTimeout(() => {
+        if (toast.parentNode) {
+          toast.remove();
+        }
+      }, 300);
+    }, 3000);
   }
 }
 
