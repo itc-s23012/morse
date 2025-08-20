@@ -1,0 +1,35 @@
+{
+  "manifest_version": 3,
+  "name": "モールス風タップカウンター",
+  "version": "1.0",
+  "description": "どのサイトでもモールス風タップでリアルタイム数字変換",
+  "permissions": [
+    "activeTab",
+    "storage",
+    "notifications"
+  ],
+  "host_permissions": [
+    "https://*/*",
+    "http://*/*"
+  ],
+  "action": {
+    "default_popup": "popup.html",
+    "default_title": "モールス風タップカウンター"
+  },
+  "content_scripts": [
+    {
+      "matches": ["<all_urls>"],
+      "js": ["content.js"],
+      "run_at": "document_start"
+    }
+  ],
+  "background": {
+    "service_worker": "background.js"
+  },
+  "web_accessible_resources": [
+    {
+      "resources": ["popup.html", "popup.css"],
+      "matches": ["<all_urls>"]
+    }
+  ]
+}
