@@ -14,7 +14,6 @@ class MorseTapCounter {
     this.onlineUsers = 0; // オンラインユーザー数
     this.lastShownSignals = new Set(); // 既に表示したシグナルのID追跡
     this.messageListener = null; // メッセージリスナーの参照
-    this.isHistoryVisible = false; // 履歴表示状態
     
     console.log('MorseTapCounter: 初期化 - ユーザーID:', this.userId);
     
@@ -144,7 +143,7 @@ class MorseTapCounter {
     const newSignals = this.realtimeSignals.filter(signal => {
       const signalAge = Date.now() - signal.timestamp;
       const signalId = `${signal.userId}-${signal.timestamp}`;
-      const isNew = signalAge < 15000 && // 15秒以内
+      const isNew = signalAge < 5000 && // 5秒以内
                    signal.userId !== this.userId && // 他人のもの
                    !this.lastShownSignals.has(signalId); // 未表示
       
@@ -305,9 +304,9 @@ class MorseTapCounter {
 
   // リアルタイム表示削除
   removeRealtimeDisplay() {
-    // 一時的なシグナル表示をすべて削除
-    const tempSignals = document.querySelectorAll('[id^="morse-temp-signal-"], [id^="morse-other-tap-"]');
-    tempSignals.forEach(signal => signal.remove());
+    // 他人のタップ表示をすべて削除
+    const otherTaps = document.querySelectorAll('[id^="morse-other-tap-"]');
+    otherTaps.forEach(tap => tap.remove());
     console.log('MorseTapCounter: リアルタイム表示をクリーンアップしました');
   }
 
@@ -473,10 +472,9 @@ class MorseTapCounter {
 
       // オンライン情報を表示
       const onlineInfo = this.onlineUsers > 1 ? ` (${this.onlineUsers}人オンライン)` : '';
-      const realtimeInfo = this.realtimeSignals.length > 0 ? ` • ${this.realtimeSignals.length}件履歴` : '';
       
       // 基本情報
-      const basicInfo = `タップ: ${this.tapCount} | 結果: ${this.currentValue || '-'}${onlineInfo}${realtimeInfo}`;
+      const basicInfo = `タップ: ${this.tapCount} | 結果: ${this.currentValue || '-'}${onlineInfo}`;
 
       // 基本情報の表示部分
       const contentDiv = document.createElement('div');
@@ -492,31 +490,6 @@ class MorseTapCounter {
         <span style="color: #22d3ee !important;">${statusText}</span>
         <span style="color: #e5e7eb !important;">${basicInfo}</span>
       `;
-      
-      // 履歴表示ボタンを追加（履歴がある場合のみ）
-      if (this.realtimeSignals.length > 0) {
-        const historyBtn = document.createElement('button');
-        historyBtn.style.cssText = `
-          background: rgba(34, 211, 238, 0.2) !important;
-          border: 1px solid rgba(34, 211, 238, 0.4) !important;
-          color: #22d3ee !important;
-          padding: 2px 6px !important;
-          border-radius: 4px !important;
-          font-size: 9px !important;
-          cursor: pointer !important;
-          font-weight: 600 !important;
-          pointer-events: auto !important;
-          outline: none !important;
-        `;
-        historyBtn.textContent = '履歴表示';
-        historyBtn.onclick = (e) => {
-          e.preventDefault();
-          e.stopPropagation();
-          console.log('MorseTapCounter: 履歴ボタンクリック');
-          this.toggleHistoryDisplay();
-        };
-        contentDiv.appendChild(historyBtn);
-      }
       
       // インジケーターの内容をクリア
       indicator.innerHTML = '';
@@ -636,209 +609,6 @@ class MorseTapCounter {
         }
       }, 300);
     }, 3000);
-  }
-
-  // 履歴表示の切り替え
-  toggleHistoryDisplay() {
-    console.log('MorseTapCounter: 履歴表示切り替え開始 - 現在:', this.isHistoryVisible, '履歴数:', this.realtimeSignals.length);
-    this.isHistoryVisible = !this.isHistoryVisible;
-    
-    if (this.isHistoryVisible) {
-      console.log('MorseTapCounter: 履歴パネルを表示します');
-      this.showHistoryPanel();
-    } else {
-      console.log('MorseTapCounter: 履歴パネルを非表示にします');
-      this.hideHistoryPanel();
-    }
-  }
-
-  // 履歴パネル表示
-  showHistoryPanel() {
-    // 既存のパネルがあれば削除
-    const existingPanel = document.getElementById('morse-history-panel');
-    if (existingPanel) {
-      existingPanel.remove();
-    }
-
-    const panel = document.createElement('div');
-    panel.id = 'morse-history-panel';
-    panel.style.cssText = `
-      position: fixed !important;
-      top: 70px !important;
-      right: 20px !important;
-      width: 300px !important;
-      max-height: 400px !important;
-      background: rgba(17, 24, 39, 0.95) !important;
-      border: 1px solid rgba(148, 163, 184, 0.4) !important;
-      border-radius: 12px !important;
-      padding: 16px !important;
-      color: #e5e7eb !important;
-      font-family: ui-sans-serif, system-ui, sans-serif !important;
-      font-size: 12px !important;
-      z-index: 2147483646 !important;
-      backdrop-filter: blur(10px) !important;
-      box-shadow: 0 10px 30px rgba(0, 0, 0, 0.3) !important;
-      overflow-y: auto !important;
-      animation: slideInFromRight 0.3s ease-out forwards !important;
-      opacity: 0 !important;
-      transform: translateX(20px) !important;
-    `;
-
-    // ヘッダー
-    const header = document.createElement('div');
-    header.style.cssText = `
-      display: flex !important;
-      justify-content: space-between !important;
-      align-items: center !important;
-      margin-bottom: 12px !important;
-      padding-bottom: 8px !important;
-      border-bottom: 1px solid rgba(148, 163, 184, 0.2) !important;
-    `;
-    
-    const title = document.createElement('h3');
-    title.style.cssText = `
-      margin: 0 !important;
-      font-size: 14px !important;
-      font-weight: 600 !important;
-      color: #22d3ee !important;
-    `;
-    title.textContent = `リアルタイム履歴 (${this.realtimeSignals.length}件)`;
-
-    const closeBtn = document.createElement('button');
-    closeBtn.style.cssText = `
-      background: rgba(239, 68, 68, 0.2) !important;
-      border: 1px solid rgba(239, 68, 68, 0.4) !important;
-      color: #ef4444 !important;
-      padding: 4px 8px !important;
-      border-radius: 4px !important;
-      font-size: 10px !important;
-      cursor: pointer !important;
-      font-weight: 600 !important;
-      outline: none !important;
-    `;
-    closeBtn.textContent = '✕ 閉じる';
-    closeBtn.onclick = (e) => {
-      e.preventDefault();
-      e.stopPropagation();
-      console.log('MorseTapCounter: 履歴パネル閉じるボタンクリック');
-      this.toggleHistoryDisplay();
-    };
-
-    header.appendChild(title);
-    header.appendChild(closeBtn);
-    panel.appendChild(header);
-
-    // 履歴リスト
-    const historyList = document.createElement('div');
-    historyList.style.cssText = `
-      display: flex !important;
-      flex-direction: column !important;
-      gap: 8px !important;
-    `;
-
-    // 履歴を時間順でソート（新しい順）
-    const sortedSignals = [...this.realtimeSignals].sort((a, b) => b.timestamp - a.timestamp);
-
-    if (sortedSignals.length === 0) {
-      const emptyMsg = document.createElement('div');
-      emptyMsg.style.cssText = `
-        text-align: center !important;
-        color: #9ca3af !important;
-        font-style: italic !important;
-        padding: 20px 0 !important;
-      `;
-      emptyMsg.textContent = '履歴がありません';
-      historyList.appendChild(emptyMsg);
-    } else {
-      sortedSignals.forEach((signal, index) => {
-        const item = document.createElement('div');
-        item.style.cssText = `
-          background: rgba(55, 65, 81, 0.5) !important;
-          border: 1px solid rgba(75, 85, 99, 0.4) !important;
-          border-radius: 8px !important;
-          padding: 8px 12px !important;
-          display: flex !important;
-          justify-content: space-between !important;
-          align-items: center !important;
-        `;
-
-        const leftSection = document.createElement('div');
-        leftSection.style.cssText = `
-          display: flex !important;
-          align-items: center !important;
-          gap: 8px !important;
-        `;
-
-        // 値を表示
-        const valueDiv = document.createElement('div');
-        valueDiv.style.cssText = `
-          width: 24px !important;
-          height: 24px !important;
-          border-radius: 6px !important;
-          display: flex !important;
-          align-items: center !important;
-          justify-content: center !important;
-          font-weight: 800 !important;
-          font-size: 12px !important;
-          background: rgba(34, 211, 238, 0.2) !important;
-          border: 1px solid rgba(34, 211, 238, 0.4) !important;
-          color: #22d3ee !important;
-        `;
-        valueDiv.textContent = signal.value;
-
-        // ユーザー情報
-        const userInfo = document.createElement('div');
-        userInfo.style.cssText = `
-          color: #e5e7eb !important;
-          font-size: 11px !important;
-        `;
-        const isMe = signal.userId === this.userId;
-        userInfo.textContent = isMe ? '自分' : `他人 (${signal.userId.substr(0, 4)}...)`;
-
-        leftSection.appendChild(valueDiv);
-        leftSection.appendChild(userInfo);
-
-        // 時間情報
-        const timeDiv = document.createElement('div');
-        timeDiv.style.cssText = `
-          color: #9ca3af !important;
-          font-size: 10px !important;
-          text-align: right !important;
-        `;
-        const timeAgo = Math.floor((Date.now() - signal.timestamp) / 1000);
-        if (timeAgo < 60) {
-          timeDiv.textContent = `${timeAgo}秒前`;
-        } else if (timeAgo < 3600) {
-          timeDiv.textContent = `${Math.floor(timeAgo / 60)}分前`;
-        } else {
-          timeDiv.textContent = `${Math.floor(timeAgo / 3600)}時間前`;
-        }
-
-        item.appendChild(leftSection);
-        item.appendChild(timeDiv);
-        historyList.appendChild(item);
-      });
-    }
-
-    panel.appendChild(historyList);
-    
-    const container = document.body || document.documentElement;
-    container.appendChild(panel);
-
-    console.log('MorseTapCounter: 履歴パネル表示完了 - 履歴数:', sortedSignals.length);
-  }
-
-  // 履歴パネル非表示
-  hideHistoryPanel() {
-    const panel = document.getElementById('morse-history-panel');
-    if (panel) {
-      panel.style.animation = 'slideOutToRight 0.3s ease-in forwards';
-      setTimeout(() => {
-        if (panel.parentNode) {
-          panel.remove();
-        }
-      }, 300);
-    }
   }
 }
 

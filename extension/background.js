@@ -157,7 +157,7 @@ class MorseFirebaseManager {
       const apiKey = 'AIzaSyC-lPLjd6RR0YAQ5T_iC3bVEVpM4Z38Jpw';
       
       // Firestoreから最新のデータを取得
-      const response = await fetch(`https://firestore.googleapis.com/v1/projects/${projectId}/databases/(default)/documents/signals?key=${apiKey}&pageSize=20&orderBy=createdAt%20desc`);
+      const response = await fetch(`https://firestore.googleapis.com/v1/projects/${projectId}/databases/(default)/documents/signals?key=${apiKey}&pageSize=10&orderBy=createdAt%20desc`);
       
       if (response.ok) {
         const data = await response.json();
@@ -181,10 +181,10 @@ class MorseFirebaseManager {
           }
         }).filter(signal => signal !== null);
         
-        // 最近のデータのみフィルター（10分以内）
+        // 最近のデータのみフィルター（3分以内）
         const recentSignals = signals.filter(signal => {
           const age = Date.now() - signal.timestamp;
-          return age < 600000; // 10分以内
+          return age < 180000; // 3分以内
         });
         
         console.log('Background: 取得したシグナル数:', recentSignals.length);
