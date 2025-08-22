@@ -35,25 +35,37 @@ class MorseTapCounter {
   }
 
   init() {
+    console.log('MorseTapCounter: init開始');
+    
     // 拡張機能の有効/無効状態を取得
     chrome.storage.sync.get(['isEnabled'], (result) => {
       this.isEnabled = result.isEnabled || false;
+      console.log('MorseTapCounter: 有効状態取得:', this.isEnabled);
+      
       if (this.isEnabled) {
+        console.log('MorseTapCounter: 拡張機能を有効化中...');
         this.setupEventListeners();
         this.createFloatingIndicator();
         this.startRealtimeMonitoring();
+      } else {
+        console.log('MorseTapCounter: 拡張機能は無効状態');
+        // 無効でも基本のインジケーターを作成
+        this.createFloatingIndicator();
       }
     });
 
     // ストレージの変更を監視
     chrome.storage.onChanged.addListener((changes) => {
       if (changes.isEnabled) {
+        console.log('MorseTapCounter: 有効状態変更:', changes.isEnabled.oldValue, '→', changes.isEnabled.newValue);
         this.isEnabled = changes.isEnabled.newValue;
         if (this.isEnabled) {
+          console.log('MorseTapCounter: 拡張機能を有効化...');
           this.setupEventListeners();
           this.createFloatingIndicator();
           this.startRealtimeMonitoring();
         } else {
+          console.log('MorseTapCounter: 拡張機能を無効化...');
           this.removeEventListeners();
           this.removeFloatingIndicator();
           this.stopRealtimeMonitoring();
@@ -64,7 +76,7 @@ class MorseTapCounter {
 
   // Firebase リアルタイム監視開始
   startRealtimeMonitoring() {
-    console.log('MorseTapCounter: リアルタイム監視開始');
+    console.log('MorseTapCounter: リアルタイム監視開始 - ユーザーID:', this.userId);
     
     // バックグラウンドスクリプトにリアルタイム監視開始を要求
     chrome.runtime.sendMessage({
@@ -82,14 +94,22 @@ class MorseTapCounter {
     if (!this.messageListener) {
       this.messageListener = (message, sender, sendResponse) => {
         if (message.action === 'realtimeUpdate') {
-          console.log('MorseTapCounter: リアルタイムデータ受信:', message);
+          console.log('MorseTapCounter: リアルタイムデータ受信:', {
+            signalsCount: message.signals?.length || 0,
+            onlineUsers: message.onlineUsers || 0,
+            myUserId: this.userId,
+            signals: message.signals
+          });
+          
           this.realtimeSignals = message.signals || [];
           this.onlineUsers = message.onlineUsers || 0;
           this.updateRealtimeDisplay();
+          
           console.log('MorseTapCounter: リアルタイムデータ更新完了 - 信号数:', this.realtimeSignals.length, 'オンライン:', this.onlineUsers);
         }
       };
       chrome.runtime.onMessage.addListener(this.messageListener);
+      console.log('MorseTapCounter: メッセージリスナー登録完了');
     }
   }
 
@@ -256,53 +276,7 @@ class MorseTapCounter {
 
   // フローティングインジケーター更新
   updateFloatingIndicator() {
-    const indicator = document.getElementById('morse-floating-indicator');
-    if (!indicator) return;
-
-    try {
-      // オンライン情報を表示
-      const onlineInfo = this.onlineUsers > 1 ? ` (${this.onlineUsers}人オンライン)` : '';
-      const realtimeInfo = this.realtimeSignals.length > 0 ? ` • ${this.realtimeSignals.length}件のリアルタイム履歴` : '';
-      
-      // 基本情報
-      const basicInfo = `タップ: ${this.tapCount} | 結果: ${this.currentValue || '-'}${onlineInfo}${realtimeInfo}`;
-      
-      // ステータスに応じた色とテキスト
-      let statusText = '';
-      let backgroundColor = '';
-      let borderColor = '';
-      
-      if (this.isActive) {
-        statusText = '📊 アクティブ';
-        backgroundColor = 'rgba(34, 211, 238, 0.15)';
-        borderColor = 'rgba(34, 211, 238, 0.7)';
-      } else {
-        statusText = '⏸️ 停止中';
-        backgroundColor = 'rgba(55, 65, 81, 0.95)';
-        borderColor = 'rgba(75, 85, 99, 0.7)';
-      }
-
-      indicator.innerHTML = `
-        <div style="
-          display: flex !important;
-          align-items: center !important;
-          gap: 8px !important;
-          font-weight: 600 !important;
-          font-size: 11px !important;
-        ">
-          <span style="color: #22d3ee !important;">${statusText}</span>
-          <span style="color: #e5e7eb !important;">${basicInfo}</span>
-        </div>
-      `;
-
-      // 背景色とボーダーを更新
-      indicator.style.background = backgroundColor;
-      indicator.style.borderColor = borderColor;
-      
-      console.log('MorseTapCounter: フローティングインジケーター更新完了');
-    } catch (error) {
-      console.error('MorseTapCounter: フローティングインジケーター更新エラー:', error);
-    }
+    this.updateFloatingIndicatorContent();
   }
 
   // リアルタイム表示削除
@@ -410,7 +384,11 @@ class MorseTapCounter {
   }
 
   createFloatingIndicator() {
-    if (document.getElementById('morse-floating-indicator')) return;
+    // 既存のインジケーターを削除
+    const existingIndicator = document.getElementById('morse-floating-indicator');
+    if (existingIndicator) {
+      existingIndicator.remove();
+    }
 
     const indicator = document.createElement('div');
     indicator.id = 'morse-floating-indicator';
@@ -432,21 +410,70 @@ class MorseTapCounter {
       transition: all 0.3s ease !important;
       pointer-events: none !important;
     `;
-    indicator.innerHTML = `
-      <div style="
-        display: flex !important;
-        align-items: center !important;
-        gap: 8px !important;
-        font-weight: 600 !important;
-        font-size: 11px !important;
-      ">
-        <span style="color: #22d3ee !important;">⏸️ 停止中</span>
-        <span style="color: #e5e7eb !important;">タップ: 0 | 結果: -</span>
-      </div>
-    `;
+    
+    // 初期状態の表示を設定
+    this.updateFloatingIndicatorContent(indicator);
     
     const container = document.body || document.documentElement;
     container.appendChild(indicator);
+    
+    console.log('MorseTapCounter: フローティングインジケーター作成完了');
+  }
+
+  updateFloatingIndicatorContent(indicator = null) {
+    if (!indicator) {
+      indicator = document.getElementById('morse-floating-indicator');
+    }
+    if (!indicator) return;
+
+    try {
+      // 拡張機能の状態に応じた表示
+      let statusText = '';
+      let backgroundColor = '';
+      let borderColor = '';
+      
+      if (!this.isEnabled) {
+        statusText = '⏸️ 無効';
+        backgroundColor = 'rgba(75, 85, 99, 0.95)';
+        borderColor = 'rgba(107, 114, 128, 0.7)';
+      } else if (this.isActive) {
+        statusText = '📊 アクティブ';
+        backgroundColor = 'rgba(34, 211, 238, 0.15)';
+        borderColor = 'rgba(34, 211, 238, 0.7)';
+      } else {
+        statusText = '✅ 待機中';
+        backgroundColor = 'rgba(55, 65, 81, 0.95)';
+        borderColor = 'rgba(34, 211, 238, 0.5)';
+      }
+
+      // オンライン情報を表示
+      const onlineInfo = this.onlineUsers > 1 ? ` (${this.onlineUsers}人オンライン)` : '';
+      const realtimeInfo = this.realtimeSignals.length > 0 ? ` • ${this.realtimeSignals.length}件履歴` : '';
+      
+      // 基本情報
+      const basicInfo = `タップ: ${this.tapCount} | 結果: ${this.currentValue || '-'}${onlineInfo}${realtimeInfo}`;
+
+      indicator.innerHTML = `
+        <div style="
+          display: flex !important;
+          align-items: center !important;
+          gap: 8px !important;
+          font-weight: 600 !important;
+          font-size: 11px !important;
+        ">
+          <span style="color: #22d3ee !important;">${statusText}</span>
+          <span style="color: #e5e7eb !important;">${basicInfo}</span>
+        </div>
+      `;
+
+      // 背景色とボーダーを更新
+      indicator.style.background = backgroundColor;
+      indicator.style.borderColor = borderColor;
+      
+      console.log('MorseTapCounter: フローティングインジケーター更新:', statusText);
+    } catch (error) {
+      console.error('MorseTapCounter: フローティングインジケーター更新エラー:', error);
+    }
   }
 
   removeFloatingIndicator() {

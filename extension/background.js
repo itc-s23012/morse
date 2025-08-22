@@ -112,10 +112,17 @@ class MorseFirebaseManager {
 
   async fetchAndSendRealtimeData(userId, tabId) {
     try {
+      console.log('Background: リアルタイムデータ取得開始 - userId:', userId, 'tabId:', tabId);
+      
       const signals = await this.fetchRecentSignals(userId);
       const onlineUsers = await this.getOnlineUserCount();
       
-      console.log('Background: リアルタイムデータ送信 - signals:', signals.length, 'online:', onlineUsers);
+      console.log('Background: 取得したデータ:', {
+        signalsCount: signals.length,
+        onlineUsers: onlineUsers,
+        currentUserId: userId,
+        signals: signals.map(s => ({ value: s.value, userId: s.userId, age: Date.now() - s.timestamp }))
+      });
       
       // コンテンツスクリプトにデータを送信
       chrome.tabs.sendMessage(tabId, {
@@ -126,6 +133,8 @@ class MorseFirebaseManager {
         if (chrome.runtime.lastError) {
           console.log('Background: タブが無効または削除された:', chrome.runtime.lastError.message);
           this.stopRealtimeMonitoring(tabId);
+        } else {
+          console.log('Background: リアルタイムデータ送信完了 - tabId:', tabId);
         }
       });
     } catch (error) {
