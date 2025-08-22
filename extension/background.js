@@ -120,8 +120,7 @@ class MorseFirebaseManager {
       console.log('Background: 取得したデータ:', {
         signalsCount: signals.length,
         onlineUsers: onlineUsers,
-        currentUserId: userId,
-        signals: signals.map(s => ({ value: s.value, userId: s.userId, age: Date.now() - s.timestamp }))
+        currentUserId: userId
       });
       
       // コンテンツスクリプトにデータを送信

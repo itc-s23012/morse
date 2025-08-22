@@ -97,8 +97,7 @@ class MorseTapCounter {
           console.log('MorseTapCounter: リアルタイムデータ受信:', {
             signalsCount: message.signals?.length || 0,
             onlineUsers: message.onlineUsers || 0,
-            myUserId: this.userId,
-            signals: message.signals
+            myUserId: this.userId
           });
           
           this.realtimeSignals = message.signals || [];
@@ -169,132 +168,109 @@ class MorseTapCounter {
       newSignals.forEach((signal, index) => {
         // 遅延して表示（複数ある場合は少しずつ表示）
         setTimeout(() => {
-          this.createOtherUserTapDisplay(signal);
+          this.createSmallSignalDisplay(signal);
         }, index * 200);
       });
     }
   }
 
-  // 他人のタップ結果を目立つように表示（2秒で消える）
-  createOtherUserTapDisplay(signal) {
+  // 小さなシグナル表示作成（2秒で消える）
+  createSmallSignalDisplay(signal) {
     try {
-      console.log('MorseTapCounter: 他人のタップ表示作成:', signal);
+      const signalElement = document.createElement('div');
+      const uniqueId = `morse-temp-signal-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
+      signalElement.id = uniqueId;
       
-      const tapDisplay = document.createElement('div');
-      const uniqueId = `morse-other-tap-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
-      tapDisplay.id = uniqueId;
-      
-      tapDisplay.style.cssText = `
+      signalElement.style.cssText = `
         position: fixed !important;
-        top: 50% !important;
-        left: 50% !important;
-        transform: translate(-50%, -50%) scale(0) !important;
-        background: linear-gradient(135deg, #f59e0b, #f97316) !important;
-        color: #ffffff !important;
-        padding: 20px 30px !important;
-        border-radius: 20px !important;
+        top: 70px !important;
+        right: 20px !important;
+        background: rgba(17, 24, 39, 0.95) !important;
+        border: 1px solid rgba(148, 163, 184, 0.4) !important;
+        border-radius: 10px !important;
+        padding: 8px 12px !important;
+        color: #e5e7eb !important;
         font-family: ui-sans-serif, system-ui, sans-serif !important;
-        font-size: 28px !important;
-        font-weight: 800 !important;
-        z-index: 2147483647 !important;
-        box-shadow: 0 20px 40px rgba(245, 158, 11, 0.5) !important;
+        font-size: 11px !important;
+        font-weight: 600 !important;
+        z-index: 2147483646 !important;
         backdrop-filter: blur(10px) !important;
-        border: 3px solid rgba(255, 255, 255, 0.3) !important;
-        text-align: center !important;
-        min-width: 200px !important;
-        animation: otherTapPulse 0.4s ease-out forwards !important;
+        box-shadow: 0 5px 15px rgba(0, 0, 0, 0.25) !important;
         pointer-events: none !important;
-        text-shadow: 0 2px 4px rgba(0, 0, 0, 0.3) !important;
+        display: flex !important;
+        align-items: center !important;
+        gap: 6px !important;
+        animation: slideInFromRight 0.3s ease-out forwards !important;
+        opacity: 0 !important;
+        transform: translateX(20px) !important;
       `;
 
       // アニメーション定義を追加
-      if (!document.getElementById('morse-other-tap-animations')) {
+      if (!document.getElementById('morse-animations')) {
         const style = document.createElement('style');
-        style.id = 'morse-other-tap-animations';
+        style.id = 'morse-animations';
         style.textContent = `
-          @keyframes otherTapPulse {
-            0% {
-              transform: translate(-50%, -50%) scale(0) !important;
-              opacity: 0 !important;
-            }
-            50% {
-              transform: translate(-50%, -50%) scale(1.1) !important;
+          @keyframes slideInFromRight {
+            to {
               opacity: 1 !important;
-            }
-            100% {
-              transform: translate(-50%, -50%) scale(1) !important;
-              opacity: 1 !important;
+              transform: translateX(0) !important;
             }
           }
-          @keyframes otherTapFadeOut {
-            0% {
-              transform: translate(-50%, -50%) scale(1) !important;
-              opacity: 1 !important;
-            }
-            100% {
-              transform: translate(-50%, -50%) scale(0.8) !important;
+          @keyframes slideOutToRight {
+            to {
               opacity: 0 !important;
+              transform: translateX(20px) scale(0.95) !important;
             }
           }
         `;
         document.head.appendChild(style);
       }
 
-      // メイン数字表示
-      const mainNumber = document.createElement('div');
-      mainNumber.style.cssText = `
-        font-size: 48px !important;
-        margin-bottom: 8px !important;
-        font-weight: 900 !important;
+      // 数字表示
+      const numberDiv = document.createElement('div');
+      numberDiv.style.cssText = `
+        width: 20px !important;
+        height: 20px !important;
+        border-radius: 5px !important;
+        display: flex !important;
+        align-items: center !important;
+        justify-content: center !important;
+        font-weight: 800 !important;
+        font-size: 10px !important;
+        border: 1px solid rgba(148,163,184,0.4) !important;
+        background: rgba(2,6,23,0.8) !important;
+        color: #e5e7eb !important;
       `;
-      mainNumber.textContent = signal.value;
+      numberDiv.textContent = signal.value;
 
-      // サブテキスト表示
-      const subText = document.createElement('div');
-      subText.style.cssText = `
-        font-size: 16px !important;
-        opacity: 0.9 !important;
-        font-weight: 600 !important;
+      // テキスト表示
+      const textDiv = document.createElement('div');
+      textDiv.style.cssText = `
+        color: #9ca3af !important;
+        font-size: 10px !important;
       `;
-      subText.textContent = '相手のタップ結果';
+      textDiv.textContent = '相手のタップ';
 
-      // ユーザーID表示（短縮版）
-      const userIdText = document.createElement('div');
-      userIdText.style.cssText = `
-        font-size: 12px !important;
-        opacity: 0.7 !important;
-        font-weight: 500 !important;
-        margin-top: 4px !important;
-      `;
-      userIdText.textContent = `ID: ${signal.userId.substr(0, 6)}...`;
-
-      tapDisplay.appendChild(mainNumber);
-      tapDisplay.appendChild(subText);
-      tapDisplay.appendChild(userIdText);
+      signalElement.appendChild(numberDiv);
+      signalElement.appendChild(textDiv);
 
       const container = document.body || document.documentElement;
-      container.appendChild(tapDisplay);
+      container.appendChild(signalElement);
 
       // 2秒後にフェードアウトして削除
       setTimeout(() => {
-        tapDisplay.style.animation = 'otherTapFadeOut 0.3s ease-in forwards';
+        signalElement.style.animation = 'slideOutToRight 0.3s ease-in forwards';
         setTimeout(() => {
-          if (tapDisplay.parentNode) {
-            tapDisplay.parentNode.removeChild(tapDisplay);
+          if (signalElement.parentNode) {
+            signalElement.parentNode.removeChild(signalElement);
           }
         }, 300);
-      }, 2000); // 2秒間表示
+      }, 2000);
 
-      console.log('MorseTapCounter: 他人のタップ表示作成成功 - 値:', signal.value);
+      console.log('MorseTapCounter: 小さなシグナル表示作成成功');
     } catch (error) {
-      console.error('MorseTapCounter: 他人のタップ表示作成エラー:', error);
+      console.error('MorseTapCounter: 小さなシグナル表示作成エラー:', error);
     }
-  }
-
-  // 一時的なシグナル表示作成（旧バージョン・今は使用されない）
-  createTemporarySignalDisplay(signal) {
-    // この関数は createOtherUserTapDisplay に置き換えられました
-    this.createOtherUserTapDisplay(signal);
   }
 
   // フローティングインジケーター更新
@@ -304,10 +280,9 @@ class MorseTapCounter {
 
   // リアルタイム表示削除
   removeRealtimeDisplay() {
-    // 他人のタップ表示をすべて削除
-    const otherTaps = document.querySelectorAll('[id^="morse-other-tap-"]');
-    otherTaps.forEach(tap => tap.remove());
-    console.log('MorseTapCounter: リアルタイム表示をクリーンアップしました');
+    // 一時的なシグナル表示をすべて削除
+    const tempSignals = document.querySelectorAll('[id^="morse-temp-signal-"]');
+    tempSignals.forEach(signal => signal.remove());
   }
 
   setupEventListeners() {
