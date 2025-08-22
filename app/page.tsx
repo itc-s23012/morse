@@ -17,6 +17,7 @@ export default function Home() {
   const [outputNumber, setOutputNumber] = useState("–");
   const [userId] = useState(() => Math.random().toString(36).substr(2, 9));
   const [onlineUsers, setOnlineUsers] = useState(0);
+  const [extensionUsers, setExtensionUsers] = useState(0);
 
   const timerRef = useRef<NodeJS.Timeout | null>(null);
   const startTsRef = useRef(0);
@@ -42,13 +43,24 @@ export default function Home() {
         
         // 過去5分以内のユニークユーザー数を計算
         const fiveMinutesAgo = Date.now() - 5 * 60 * 1000;
+        const recentSignals = data.filter(signal => 
+          signal.createdAt && signal.createdAt.toMillis() > fiveMinutesAgo
+        );
+        
         const activeUsers = new Set(
-          data
-            .filter(signal => signal.createdAt && signal.createdAt.toMillis() > fiveMinutesAgo)
+          recentSignals
             .map(signal => signal.userId)
             .filter(Boolean)
         );
         setOnlineUsers(activeUsers.size);
+        
+        // 拡張機能ユーザーを識別（userIdが9文字のランダム文字列の場合）
+        const extensionUserIds = new Set(
+          recentSignals
+            .filter(signal => signal.userId && signal.userId.length === 9 && /^[a-z0-9]+$/.test(signal.userId))
+            .map(signal => signal.userId)
+        );
+        setExtensionUsers(extensionUserIds.size);
       }
     );
     return () => unsubscribe();
@@ -198,35 +210,62 @@ export default function Home() {
             display: 'flex',
             alignItems: 'center',
             justifyContent: 'space-between',
-            gap: '12px'
+            gap: '12px',
+            flexWrap: 'wrap'
           }}>
-            <div>
+            <div style={{ flex: '1 1 300px' }}>
               <div style={{ fontSize: '20px', fontWeight: 700, letterSpacing: '0.2px' }}>
                 モールス風タップ → 1〜5 変換
               </div>
               <div style={{ color: '#9ca3af', fontSize: '13px' }}>
                 一定時間内に同じキーを連打すると、連打数を 1〜5 の数字として出力します。
               </div>
+              <div style={{ color: '#60a5fa', fontSize: '12px', marginTop: '4px' }}>
+                💡 <a 
+                  href="/extension" 
+                  style={{ color: '#60a5fa', textDecoration: 'underline' }}
+                  onClick={(e) => {
+                    e.preventDefault();
+                    window.open('https://github.com/itc-s23012/morse/tree/shared-extension/extension', '_blank');
+                  }}
+                >
+                  ブラウザ拡張機能版
+                </a>もあります（どのサイトでも使用可能）
+              </div>
             </div>
-            <div style={{
-              fontSize: '12px',
-              padding: '6px 10px',
-              border: '1px solid rgba(148,163,184,0.25)',
-              borderRadius: '999px',
-              background: 'rgba(2,6,23,0.45)',
-              color: overflowKind === 'ok' ? '#34d399' : overflowKind === 'warn' ? '#f87171' : '#9ca3af'
-            }}>
-              {status}
-            </div>
-            <div style={{
-              fontSize: '12px',
-              padding: '6px 10px',
-              border: '1px solid rgba(34,211,238,0.25)',
-              borderRadius: '999px',
-              background: 'rgba(34,211,238,0.1)',
-              color: '#22d3ee'
-            }}>
-              🟢 {onlineUsers} 人オンライン
+            <div style={{ display: 'flex', gap: '8px', alignItems: 'center', flexWrap: 'wrap' }}>
+              <div style={{
+                fontSize: '12px',
+                padding: '6px 10px',
+                border: '1px solid rgba(148,163,184,0.25)',
+                borderRadius: '999px',
+                background: 'rgba(2,6,23,0.45)',
+                color: overflowKind === 'ok' ? '#34d399' : overflowKind === 'warn' ? '#f87171' : '#9ca3af'
+              }}>
+                {status}
+              </div>
+              <div style={{
+                fontSize: '12px',
+                padding: '6px 10px',
+                border: '1px solid rgba(34,211,238,0.25)',
+                borderRadius: '999px',
+                background: 'rgba(34,211,238,0.1)',
+                color: '#22d3ee'
+              }}>
+                🟢 {onlineUsers} 人オンライン
+              </div>
+              {extensionUsers > 0 && (
+                <div style={{
+                  fontSize: '12px',
+                  padding: '6px 10px',
+                  border: '1px solid rgba(96,165,250,0.25)',
+                  borderRadius: '999px',
+                  background: 'rgba(96,165,250,0.1)',
+                  color: '#60a5fa'
+                }}>
+                  🔧 {extensionUsers} 拡張機能
+                </div>
+              )}
             </div>
           </div>
 
