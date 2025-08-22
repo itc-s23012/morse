@@ -17,6 +17,7 @@ export default function Home() {
   const [outputNumber, setOutputNumber] = useState("–");
   const [userId] = useState(() => Math.random().toString(36).substr(2, 9));
   const [onlineUsers, setOnlineUsers] = useState(0);
+  const [extensionUsers, setExtensionUsers] = useState(0);
 
   const timerRef = useRef<NodeJS.Timeout | null>(null);
   const startTsRef = useRef(0);
@@ -42,13 +43,24 @@ export default function Home() {
         
         // 過去5分以内のユニークユーザー数を計算
         const fiveMinutesAgo = Date.now() - 5 * 60 * 1000;
+        const recentSignals = data.filter(signal => 
+          signal.createdAt && signal.createdAt.toMillis() > fiveMinutesAgo
+        );
+        
         const activeUsers = new Set(
-          data
-            .filter(signal => signal.createdAt && signal.createdAt.toMillis() > fiveMinutesAgo)
+          recentSignals
             .map(signal => signal.userId)
             .filter(Boolean)
         );
         setOnlineUsers(activeUsers.size);
+        
+        // 拡張機能ユーザーを識別（userIdが9文字のランダム文字列の場合）
+        const extensionUserIds = new Set(
+          recentSignals
+            .filter(signal => signal.userId && signal.userId.length === 9 && /^[a-z0-9]+$/.test(signal.userId))
+            .map(signal => signal.userId)
+        );
+        setExtensionUsers(extensionUserIds.size);
       }
     );
     return () => unsubscribe();
@@ -198,35 +210,62 @@ export default function Home() {
             display: 'flex',
             alignItems: 'center',
             justifyContent: 'space-between',
-            gap: '12px'
+            gap: '12px',
+            flexWrap: 'wrap'
           }}>
-            <div>
+            <div style={{ flex: '1 1 300px' }}>
               <div style={{ fontSize: '20px', fontWeight: 700, letterSpacing: '0.2px' }}>
                 モールス風タップ → 1〜5 変換
               </div>
               <div style={{ color: '#9ca3af', fontSize: '13px' }}>
                 一定時間内に同じキーを連打すると、連打数を 1〜5 の数字として出力します。
               </div>
+              <div style={{ color: '#60a5fa', fontSize: '12px', marginTop: '4px' }}>
+                💡 <a 
+                  href="/extension" 
+                  style={{ color: '#60a5fa', textDecoration: 'underline' }}
+                  onClick={(e) => {
+                    e.preventDefault();
+                    window.open('https://github.com/itc-s23012/morse/tree/shared-extension/extension', '_blank');
+                  }}
+                >
+                  ブラウザ拡張機能版
+                </a>もあります（どのサイトでも使用可能）
+              </div>
             </div>
-            <div style={{
-              fontSize: '12px',
-              padding: '6px 10px',
-              border: '1px solid rgba(148,163,184,0.25)',
-              borderRadius: '999px',
-              background: 'rgba(2,6,23,0.45)',
-              color: overflowKind === 'ok' ? '#34d399' : overflowKind === 'warn' ? '#f87171' : '#9ca3af'
-            }}>
-              {status}
-            </div>
-            <div style={{
-              fontSize: '12px',
-              padding: '6px 10px',
-              border: '1px solid rgba(34,211,238,0.25)',
-              borderRadius: '999px',
-              background: 'rgba(34,211,238,0.1)',
-              color: '#22d3ee'
-            }}>
-              🟢 {onlineUsers} 人オンライン
+            <div style={{ display: 'flex', gap: '8px', alignItems: 'center', flexWrap: 'wrap' }}>
+              <div style={{
+                fontSize: '12px',
+                padding: '6px 10px',
+                border: '1px solid rgba(148,163,184,0.25)',
+                borderRadius: '999px',
+                background: 'rgba(2,6,23,0.45)',
+                color: overflowKind === 'ok' ? '#34d399' : overflowKind === 'warn' ? '#f87171' : '#9ca3af'
+              }}>
+                {status}
+              </div>
+              <div style={{
+                fontSize: '12px',
+                padding: '6px 10px',
+                border: '1px solid rgba(34,211,238,0.25)',
+                borderRadius: '999px',
+                background: 'rgba(34,211,238,0.1)',
+                color: '#22d3ee'
+              }}>
+                🟢 {onlineUsers} 人オンライン
+              </div>
+              {extensionUsers > 0 && (
+                <div style={{
+                  fontSize: '12px',
+                  padding: '6px 10px',
+                  border: '1px solid rgba(96,165,250,0.25)',
+                  borderRadius: '999px',
+                  background: 'rgba(96,165,250,0.1)',
+                  color: '#60a5fa'
+                }}>
+                  🔧 {extensionUsers} 拡張機能
+                </div>
+              )}
             </div>
           </div>
 
@@ -453,43 +492,71 @@ export default function Home() {
                 </div>
               </div>
               
-              <div style={{ marginTop: '12px', color: '#9ca3af', fontSize: '13px' }}>リアルタイム履歴（全ユーザー）</div>
+              <div style={{ marginTop: '12px', color: '#9ca3af', fontSize: '13px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                <span>リアルタイム履歴（全ユーザー）</span>
+                <span style={{ fontSize: '11px', color: '#60a5fa' }}>🔵=自分 ⚪=他人</span>
+              </div>
               <div style={{
-                display: 'grid',
-                gap: '8px',
+                display: 'flex',
+                flexWrap: 'wrap',
+                gap: '6px',
                 maxHeight: '260px',
                 overflow: 'auto',
-                marginTop: '8px'
+                marginTop: '8px',
+                padding: '4px'
               }}>
-                {signals.map((signal) => (
+                {signals.slice(0, 20).map((signal, index) => (
                   <div 
                     key={signal.id} 
                     style={{
-                      display: 'inline-grid',
-                      placeItems: 'center',
-                      width: '40px',
-                      height: '40px',
-                      borderRadius: '12px',
-                      border: `2px solid ${signal.userId === userId ? 'rgba(34,211,238,0.5)' : 'rgba(148,163,184,0.25)'}`,
-                      background: signal.userId === userId ? 'rgba(34,211,238,0.1)' : 'rgba(2,6,23,0.6)',
-                      fontWeight: 800,
-                      margin: '2px',
-                      position: 'relative'
+                      display: 'flex',
+                      flexDirection: 'column',
+                      alignItems: 'center',
+                      animation: index < 3 ? 'pulse 1s ease-in-out' : 'none'
                     }}
-                    title={signal.userId === userId ? '自分の入力' : '他のユーザーの入力'}
+                  >
+                    <div style={{
+                      display: 'grid',
+                      placeItems: 'center',
+                      width: '36px',
+                      height: '36px',
+                      borderRadius: '10px',
+                      border: `2px solid ${signal.userId === userId ? 'rgba(34,211,238,0.7)' : 'rgba(148,163,184,0.4)'}`,
+                      background: signal.userId === userId ? 'rgba(34,211,238,0.15)' : 'rgba(2,6,23,0.8)',
+                      fontWeight: 800,
+                      fontSize: '16px',
+                      position: 'relative',
+                      boxShadow: signal.userId === userId ? '0 0 10px rgba(34,211,238,0.3)' : 'none'
+                    }}
+                    title={`${signal.userId === userId ? '👤 あなた' : '👥 他のユーザー'}の入力: ${signal.value}`}
                   >
                     {signal.value}
                     {signal.userId === userId && (
                       <div style={{
                         position: 'absolute',
-                        top: '-4px',
-                        right: '-4px',
-                        width: '8px',
-                        height: '8px',
+                        top: '-6px',
+                        right: '-6px',
+                        width: '12px',
+                        height: '12px',
                         borderRadius: '50%',
-                        background: '#22d3ee'
-                      }} />
+                        background: '#22d3ee',
+                        border: '2px solid white',
+                        fontSize: '8px',
+                        display: 'grid',
+                        placeItems: 'center'
+                      }}>
+                        ✓
+                      </div>
                     )}
+                  </div>
+                  <div style={{
+                    fontSize: '10px',
+                    color: signal.userId === userId ? '#22d3ee' : '#9ca3af',
+                    marginTop: '2px',
+                    textAlign: 'center'
+                  }}>
+                    {signal.userId === userId ? '自分' : '他人'}
+                  </div>
                   </div>
                 ))}
               </div>
