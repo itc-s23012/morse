@@ -57,7 +57,9 @@ class MorseFirebaseManager {
       console.log('Sending signal to Firestore:', data);
       
       const projectId = 'morse-ae272';
-      const response = await fetch(`https://firestore.googleapis.com/v1/projects/${projectId}/databases/(default)/documents/signals`, {
+      const apiKey = 'AIzaSyC-lPLjd6RR0YAQ5T_iC3bVEVpM4Z38Jpw';
+      
+      const response = await fetch(`https://firestore.googleapis.com/v1/projects/${projectId}/databases/(default)/documents/signals?key=${apiKey}`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -75,7 +77,8 @@ class MorseFirebaseManager {
         console.log('Successfully sent signal to Firestore');
         return true;
       } else {
-        console.error('Failed to send signal to Firestore:', response.statusText);
+        const errorText = await response.text();
+        console.error('Failed to send signal to Firestore:', response.status, errorText);
         return false;
       }
     } catch (error) {
@@ -91,28 +94,42 @@ class MorseFirebaseManager {
       // 既存のリスナーを停止
       this.stopRealtimeMonitoring(tabId);
       
-      // 模擬的なリアルタイム監視（実際にはFirestoreのリアルタイムリスナーを使用）
-      const intervalId = setInterval(async () => {
-        try {
-          const signals = await this.fetchRecentSignals(userId);
-          const onlineUsers = await this.getOnlineUserCount();
-          
-          // コンテンツスクリプトにデータを送信
-          chrome.tabs.sendMessage(tabId, {
-            action: 'realtimeUpdate',
-            signals: signals,
-            onlineUsers: onlineUsers
-          });
-        } catch (error) {
-          console.error('Background: リアルタイムデータ取得エラー:', error);
-        }
-      }, 2000); // 2秒ごとにチェック
+      // すぐに一度実行
+      this.fetchAndSendRealtimeData(userId, tabId);
+      
+      // 定期的にリアルタイム監視
+      const intervalId = setInterval(() => {
+        this.fetchAndSendRealtimeData(userId, tabId);
+      }, 3000); // 3秒ごとにチェック
       
       this.realtimeListeners.set(tabId, intervalId);
       console.log('Background: リアルタイム監視開始成功');
     } catch (error) {
       console.error('Background: リアルタイム監視開始エラー:', error);
       throw error;
+    }
+  }
+
+  async fetchAndSendRealtimeData(userId, tabId) {
+    try {
+      const signals = await this.fetchRecentSignals(userId);
+      const onlineUsers = await this.getOnlineUserCount();
+      
+      console.log('Background: リアルタイムデータ送信 - signals:', signals.length, 'online:', onlineUsers);
+      
+      // コンテンツスクリプトにデータを送信
+      chrome.tabs.sendMessage(tabId, {
+        action: 'realtimeUpdate',
+        signals: signals,
+        onlineUsers: onlineUsers
+      }, (response) => {
+        if (chrome.runtime.lastError) {
+          console.log('Background: タブが無効または削除された:', chrome.runtime.lastError.message);
+          this.stopRealtimeMonitoring(tabId);
+        }
+      });
+    } catch (error) {
+      console.error('Background: リアルタイムデータ取得エラー:', error);
     }
   }
 
@@ -128,22 +145,46 @@ class MorseFirebaseManager {
   async fetchRecentSignals(currentUserId) {
     try {
       const projectId = 'morse-ae272';
-      const response = await fetch(`https://firestore.googleapis.com/v1/projects/${projectId}/databases/(default)/documents/signals?orderBy=createdAt desc&pageSize=10`);
+      const apiKey = 'AIzaSyC-lPLjd6RR0YAQ5T_iC3bVEVpM4Z38Jpw';
+      
+      // Firestoreから最新のデータを取得
+      const response = await fetch(`https://firestore.googleapis.com/v1/projects/${projectId}/databases/(default)/documents/signals?key=${apiKey}&pageSize=20&orderBy=createdAt%20desc`);
       
       if (response.ok) {
         const data = await response.json();
-        const signals = data.documents?.map(doc => ({
-          value: parseInt(doc.fields.value.integerValue),
-          userId: doc.fields.userId.stringValue,
-          timestamp: new Date(doc.fields.createdAt.timestampValue).getTime()
-        })) || [];
+        console.log('Background: Firestore応答:', data);
         
-        return signals.filter(signal => {
+        if (!data.documents) {
+          console.log('Background: ドキュメントが見つかりません');
+          return [];
+        }
+        
+        const signals = data.documents.map(doc => {
+          try {
+            return {
+              value: parseInt(doc.fields.value.integerValue),
+              userId: doc.fields.userId.stringValue,
+              timestamp: new Date(doc.fields.createdAt.timestampValue).getTime()
+            };
+          } catch (err) {
+            console.error('Background: ドキュメント解析エラー:', err, doc);
+            return null;
+          }
+        }).filter(signal => signal !== null);
+        
+        // 最近のデータのみフィルター（5分以内）
+        const recentSignals = signals.filter(signal => {
           const age = Date.now() - signal.timestamp;
-          return age < 60000; // 1分以内のデータのみ
+          return age < 300000; // 5分以内
         });
+        
+        console.log('Background: 取得したシグナル数:', recentSignals.length);
+        return recentSignals;
+      } else {
+        const errorText = await response.text();
+        console.error('Background: Firestore取得エラー:', response.status, errorText);
+        return [];
       }
-      return [];
     } catch (error) {
       console.error('Background: 最新シグナル取得エラー:', error);
       return [];

@@ -10,7 +10,8 @@
   ],
   "host_permissions": [
     "https://*/*",
-    "http://*/*"
+    "http://*/*",
+    "https://firestore.googleapis.com/*"
   ],
   "action": {
     "default_popup": "popup.html",

@@ -13,6 +13,9 @@ class MorseTapCounter {
     this.realtimeSignals = []; // リアルタイム受信データ
     this.onlineUsers = 0; // オンラインユーザー数
     this.lastShownSignals = new Set(); // 既に表示したシグナルのID追跡
+    this.messageListener = null; // メッセージリスナーの参照
+    
+    console.log('MorseTapCounter: 初期化 - ユーザーID:', this.userId);
     
     // Firebase設定（実際のFirebase設定を使用）
     this.firebaseConfig = {
@@ -67,17 +70,27 @@ class MorseTapCounter {
     chrome.runtime.sendMessage({
       action: 'startRealtimeMonitoring',
       userId: this.userId
+    }, (response) => {
+      if (chrome.runtime.lastError) {
+        console.error('MorseTapCounter: リアルタイム監視開始エラー:', chrome.runtime.lastError);
+      } else {
+        console.log('MorseTapCounter: リアルタイム監視開始応答:', response);
+      }
     });
     
     // バックグラウンドからのリアルタイムデータを受信
-    chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
-      if (message.action === 'realtimeUpdate') {
-        this.realtimeSignals = message.signals || [];
-        this.onlineUsers = message.onlineUsers || 0;
-        this.updateRealtimeDisplay();
-        console.log('MorseTapCounter: リアルタイムデータ更新', this.realtimeSignals.length, '件');
-      }
-    });
+    if (!this.messageListener) {
+      this.messageListener = (message, sender, sendResponse) => {
+        if (message.action === 'realtimeUpdate') {
+          console.log('MorseTapCounter: リアルタイムデータ受信:', message);
+          this.realtimeSignals = message.signals || [];
+          this.onlineUsers = message.onlineUsers || 0;
+          this.updateRealtimeDisplay();
+          console.log('MorseTapCounter: リアルタイムデータ更新完了 - 信号数:', this.realtimeSignals.length, 'オンライン:', this.onlineUsers);
+        }
+      };
+      chrome.runtime.onMessage.addListener(this.messageListener);
+    }
   }
 
   // Firebase リアルタイム監視停止
@@ -86,6 +99,13 @@ class MorseTapCounter {
     chrome.runtime.sendMessage({
       action: 'stopRealtimeMonitoring'
     });
+    
+    // メッセージリスナーをクリーンアップ
+    if (this.messageListener) {
+      chrome.runtime.onMessage.removeListener(this.messageListener);
+      this.messageListener = null;
+    }
+    
     this.removeRealtimeDisplay();
   }
 
@@ -97,32 +117,42 @@ class MorseTapCounter {
 
   // リアルタイムシグナル表示（新しいものだけ一時的に表示）
   showRealtimeSignals() {
+    console.log('MorseTapCounter: リアルタイム信号チェック - 受信数:', this.realtimeSignals.length);
+    
     // 新しく受信したシグナルのみを表示
     const newSignals = this.realtimeSignals.filter(signal => {
       const signalAge = Date.now() - signal.timestamp;
       const signalId = `${signal.userId}-${signal.timestamp}`;
-      const isNew = signalAge < 3000 && // 3秒以内
+      const isNew = signalAge < 10000 && // 10秒以内
                    signal.userId !== this.userId && // 他人のもの
                    !this.lastShownSignals.has(signalId); // 未表示
       
       if (isNew) {
         this.lastShownSignals.add(signalId);
+        console.log('MorseTapCounter: 新しいシグナル発見:', signal);
       }
       
       return isNew;
     });
 
+    console.log('MorseTapCounter: 表示対象のシグナル数:', newSignals.length);
+
     // 古いIDをクリーンアップ（メモリリーク防止）
     if (this.lastShownSignals.size > 50) {
+      console.log('MorseTapCounter: シグナル履歴をクリーンアップ');
       this.lastShownSignals.clear();
     }
 
-    newSignals.forEach((signal, index) => {
-      // 遅延して表示（複数ある場合は少しずつ表示）
-      setTimeout(() => {
-        this.createTemporarySignalDisplay(signal);
-      }, index * 200);
-    });
+    if (newSignals.length > 0) {
+      console.log('MorseTapCounter: 新しいシグナルを表示します:', newSignals);
+      
+      newSignals.forEach((signal, index) => {
+        // 遅延して表示（複数ある場合は少しずつ表示）
+        setTimeout(() => {
+          this.createTemporarySignalDisplay(signal);
+        }, index * 300);
+      });
+    }
   }
 
   // 一時的なシグナル表示作成
