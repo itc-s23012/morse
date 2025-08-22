@@ -144,7 +144,7 @@ class MorseTapCounter {
     const newSignals = this.realtimeSignals.filter(signal => {
       const signalAge = Date.now() - signal.timestamp;
       const signalId = `${signal.userId}-${signal.timestamp}`;
-      const isNew = signalAge < 10000 && // 10秒以内
+      const isNew = signalAge < 15000 && // 15秒以内
                    signal.userId !== this.userId && // 他人のもの
                    !this.lastShownSignals.has(signalId); // 未表示
       
@@ -170,109 +170,132 @@ class MorseTapCounter {
       newSignals.forEach((signal, index) => {
         // 遅延して表示（複数ある場合は少しずつ表示）
         setTimeout(() => {
-          this.createTemporarySignalDisplay(signal);
-        }, index * 300);
+          this.createOtherUserTapDisplay(signal);
+        }, index * 200);
       });
     }
   }
 
-  // 一時的なシグナル表示作成
-  createTemporarySignalDisplay(signal) {
+  // 他人のタップ結果を目立つように表示（2秒で消える）
+  createOtherUserTapDisplay(signal) {
     try {
-      const signalElement = document.createElement('div');
-      const uniqueId = `morse-temp-signal-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
-      signalElement.id = uniqueId;
+      console.log('MorseTapCounter: 他人のタップ表示作成:', signal);
       
-      signalElement.style.cssText = `
+      const tapDisplay = document.createElement('div');
+      const uniqueId = `morse-other-tap-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
+      tapDisplay.id = uniqueId;
+      
+      tapDisplay.style.cssText = `
         position: fixed !important;
-        top: 70px !important;
-        right: 20px !important;
-        background: rgba(17, 24, 39, 0.95) !important;
-        border: 1px solid rgba(148, 163, 184, 0.4) !important;
-        border-radius: 10px !important;
-        padding: 8px 12px !important;
-        color: #e5e7eb !important;
+        top: 50% !important;
+        left: 50% !important;
+        transform: translate(-50%, -50%) scale(0) !important;
+        background: linear-gradient(135deg, #f59e0b, #f97316) !important;
+        color: #ffffff !important;
+        padding: 20px 30px !important;
+        border-radius: 20px !important;
         font-family: ui-sans-serif, system-ui, sans-serif !important;
-        font-size: 11px !important;
-        font-weight: 600 !important;
-        z-index: 2147483646 !important;
+        font-size: 28px !important;
+        font-weight: 800 !important;
+        z-index: 2147483647 !important;
+        box-shadow: 0 20px 40px rgba(245, 158, 11, 0.5) !important;
         backdrop-filter: blur(10px) !important;
-        box-shadow: 0 5px 15px rgba(0, 0, 0, 0.25) !important;
+        border: 3px solid rgba(255, 255, 255, 0.3) !important;
+        text-align: center !important;
+        min-width: 200px !important;
+        animation: otherTapPulse 0.4s ease-out forwards !important;
         pointer-events: none !important;
-        display: flex !important;
-        align-items: center !important;
-        gap: 6px !important;
-        animation: slideInFromRight 0.3s ease-out forwards !important;
-        opacity: 0 !important;
-        transform: translateX(20px) !important;
+        text-shadow: 0 2px 4px rgba(0, 0, 0, 0.3) !important;
       `;
 
       // アニメーション定義を追加
-      if (!document.getElementById('morse-animations')) {
+      if (!document.getElementById('morse-other-tap-animations')) {
         const style = document.createElement('style');
-        style.id = 'morse-animations';
+        style.id = 'morse-other-tap-animations';
         style.textContent = `
-          @keyframes slideInFromRight {
-            to {
+          @keyframes otherTapPulse {
+            0% {
+              transform: translate(-50%, -50%) scale(0) !important;
+              opacity: 0 !important;
+            }
+            50% {
+              transform: translate(-50%, -50%) scale(1.1) !important;
               opacity: 1 !important;
-              transform: translateX(0) !important;
+            }
+            100% {
+              transform: translate(-50%, -50%) scale(1) !important;
+              opacity: 1 !important;
             }
           }
-          @keyframes slideOutToRight {
-            to {
+          @keyframes otherTapFadeOut {
+            0% {
+              transform: translate(-50%, -50%) scale(1) !important;
+              opacity: 1 !important;
+            }
+            100% {
+              transform: translate(-50%, -50%) scale(0.8) !important;
               opacity: 0 !important;
-              transform: translateX(20px) scale(0.95) !important;
             }
           }
         `;
         document.head.appendChild(style);
       }
 
-      // 数字表示
-      const numberDiv = document.createElement('div');
-      numberDiv.style.cssText = `
-        width: 20px !important;
-        height: 20px !important;
-        border-radius: 5px !important;
-        display: flex !important;
-        align-items: center !important;
-        justify-content: center !important;
-        font-weight: 800 !important;
-        font-size: 10px !important;
-        border: 1px solid rgba(148,163,184,0.4) !important;
-        background: rgba(2,6,23,0.8) !important;
-        color: #e5e7eb !important;
+      // メイン数字表示
+      const mainNumber = document.createElement('div');
+      mainNumber.style.cssText = `
+        font-size: 48px !important;
+        margin-bottom: 8px !important;
+        font-weight: 900 !important;
       `;
-      numberDiv.textContent = signal.value;
+      mainNumber.textContent = signal.value;
 
-      // テキスト表示
-      const textDiv = document.createElement('div');
-      textDiv.style.cssText = `
-        color: #9ca3af !important;
-        font-size: 10px !important;
+      // サブテキスト表示
+      const subText = document.createElement('div');
+      subText.style.cssText = `
+        font-size: 16px !important;
+        opacity: 0.9 !important;
+        font-weight: 600 !important;
       `;
-      textDiv.textContent = '他人のタップ';
+      subText.textContent = '相手のタップ結果';
 
-      signalElement.appendChild(numberDiv);
-      signalElement.appendChild(textDiv);
+      // ユーザーID表示（短縮版）
+      const userIdText = document.createElement('div');
+      userIdText.style.cssText = `
+        font-size: 12px !important;
+        opacity: 0.7 !important;
+        font-weight: 500 !important;
+        margin-top: 4px !important;
+      `;
+      userIdText.textContent = `ID: ${signal.userId.substr(0, 6)}...`;
+
+      tapDisplay.appendChild(mainNumber);
+      tapDisplay.appendChild(subText);
+      tapDisplay.appendChild(userIdText);
 
       const container = document.body || document.documentElement;
-      container.appendChild(signalElement);
+      container.appendChild(tapDisplay);
 
       // 2秒後にフェードアウトして削除
       setTimeout(() => {
-        signalElement.style.animation = 'slideOutToRight 0.3s ease-in forwards';
+        tapDisplay.style.animation = 'otherTapFadeOut 0.3s ease-in forwards';
         setTimeout(() => {
-          if (signalElement.parentNode) {
-            signalElement.parentNode.removeChild(signalElement);
+          if (tapDisplay.parentNode) {
+            tapDisplay.parentNode.removeChild(tapDisplay);
           }
         }, 300);
-      }, 2000);
+      }, 2000); // 2秒間表示
 
-      console.log('MorseTapCounter: 一時的シグナル表示作成成功');
+      console.log('MorseTapCounter: 他人のタップ表示作成成功 - 値:', signal.value);
     } catch (error) {
-      console.error('MorseTapCounter: 一時的シグナル表示作成エラー:', error);
+      console.error('MorseTapCounter: 他人のタップ表示作成エラー:', error);
     }
+  }
+
+  // 一時的なシグナル表示作成（旧バージョン・今は使用されない）
+  createTemporarySignalDisplay(signal) {
+    // この関数は createOtherUserTapDisplay に置き換えられました
+    this.createOtherUserTapDisplay(signal);
   }
 
   // フローティングインジケーター更新
@@ -283,8 +306,9 @@ class MorseTapCounter {
   // リアルタイム表示削除
   removeRealtimeDisplay() {
     // 一時的なシグナル表示をすべて削除
-    const tempSignals = document.querySelectorAll('[id^="morse-temp-signal-"]');
+    const tempSignals = document.querySelectorAll('[id^="morse-temp-signal-"], [id^="morse-other-tap-"]');
     tempSignals.forEach(signal => signal.remove());
+    console.log('MorseTapCounter: リアルタイム表示をクリーンアップしました');
   }
 
   setupEventListeners() {

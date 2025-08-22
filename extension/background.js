@@ -100,7 +100,7 @@ class MorseFirebaseManager {
       // 定期的にリアルタイム監視
       const intervalId = setInterval(() => {
         this.fetchAndSendRealtimeData(userId, tabId);
-      }, 3000); // 3秒ごとにチェック
+      }, 2000); // 2秒ごとにチェック（より頻繁に）
       
       this.realtimeListeners.set(tabId, intervalId);
       console.log('Background: リアルタイム監視開始成功');
@@ -181,10 +181,10 @@ class MorseFirebaseManager {
           }
         }).filter(signal => signal !== null);
         
-        // 最近のデータのみフィルター（5分以内）
+        // 最近のデータのみフィルター（10分以内）
         const recentSignals = signals.filter(signal => {
           const age = Date.now() - signal.timestamp;
-          return age < 300000; // 5分以内
+          return age < 600000; // 10分以内
         });
         
         console.log('Background: 取得したシグナル数:', recentSignals.length);
