@@ -8,6 +8,8 @@ class MorseTapCounter {
     this.startTs = 0;
     this.userId = this.generateUserId();
     this.isEnabled = false;
+    this.realtimeSignals = []; // 他のユーザーのタップ結果
+    this.onlineUsers = 0;
     
     // Firebase設定（実際のFirebase設定を使用）
     this.firebaseConfig = {
@@ -40,6 +42,7 @@ class MorseTapCounter {
       if (this.isEnabled) {
         this.setupEventListeners();
         this.createFloatingIndicator();
+        this.startRealtimeMonitoring(); // リアルタイム監視開始
       }
     });
 
@@ -52,9 +55,11 @@ class MorseTapCounter {
         if (this.isEnabled) {
           this.setupEventListeners();
           this.createFloatingIndicator();
+          this.startRealtimeMonitoring(); // リアルタイム監視開始
         } else {
           this.removeEventListeners();
           this.removeFloatingIndicator();
+          this.stopRealtimeMonitoring(); // リアルタイム監視停止
         }
       }
     });
@@ -375,6 +380,225 @@ class MorseTapCounter {
       
     } catch (error) {
       console.error('MorseTapCounter: トースト表示エラー:', error);
+    }
+  }
+
+  // Firebase リアルタイム監視開始
+  startRealtimeMonitoring() {
+    console.log('MorseTapCounter: リアルタイム監視開始');
+    
+    // バックグラウンドスクリプトにリアルタイム監視開始を要求
+    chrome.runtime.sendMessage({
+      action: 'startRealtimeMonitoring',
+      userId: this.userId
+    });
+    
+    // バックグラウンドからのリアルタイムデータを受信
+    chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
+      if (message.action === 'realtimeUpdate') {
+        this.realtimeSignals = message.signals || [];
+        this.onlineUsers = message.onlineUsers || 0;
+        this.updateRealtimeDisplay();
+        console.log('MorseTapCounter: リアルタイムデータ更新', this.realtimeSignals.length, '件');
+      }
+    });
+  }
+
+  // Firebase リアルタイム監視停止
+  stopRealtimeMonitoring() {
+    console.log('MorseTapCounter: リアルタイム監視停止');
+    chrome.runtime.sendMessage({
+      action: 'stopRealtimeMonitoring'
+    });
+    this.removeRealtimeDisplay();
+  }
+
+  // リアルタイム表示更新
+  updateRealtimeDisplay() {
+    this.updateFloatingIndicator();
+    this.createRealtimeHistoryPanel();
+  }
+
+  // フローティングインジケーター更新
+  updateFloatingIndicator() {
+    const indicator = document.getElementById('morse-floating-indicator');
+    if (!indicator) return;
+
+    try {
+      // オンライン情報を表示
+      const onlineInfo = this.onlineUsers > 1 ? ` (${this.onlineUsers}人オンライン)` : '';
+      const realtimeInfo = this.realtimeSignals.length > 0 ? ` • ${this.realtimeSignals.length}件のリアルタイム履歴` : '';
+      
+      // 基本情報
+      const basicInfo = `タップ: ${this.tapCount} | 結果: ${this.currentValue || '-'}${onlineInfo}${realtimeInfo}`;
+      
+      // ステータスに応じた色とテキスト
+      let statusText = '';
+      let backgroundColor = '';
+      let borderColor = '';
+      
+      if (this.isActive) {
+        statusText = '📊 アクティブ';
+        backgroundColor = 'rgba(34, 211, 238, 0.15)';
+        borderColor = 'rgba(34, 211, 238, 0.7)';
+      } else {
+        statusText = '⏸️ 停止中';
+        backgroundColor = 'rgba(55, 65, 81, 0.95)';
+        borderColor = 'rgba(75, 85, 99, 0.7)';
+      }
+
+      indicator.innerHTML = `
+        <div style="
+          display: flex !important;
+          align-items: center !important;
+          gap: 8px !important;
+          font-weight: 600 !important;
+          font-size: 11px !important;
+        ">
+          <span style="color: #22d3ee !important;">${statusText}</span>
+          <span style="color: #e5e7eb !important;">${basicInfo}</span>
+        </div>
+      `;
+
+      // 背景色とボーダーを更新
+      indicator.style.background = backgroundColor;
+      indicator.style.borderColor = borderColor;
+      
+      console.log('MorseTapCounter: フローティングインジケーター更新完了');
+    } catch (error) {
+      console.error('MorseTapCounter: フローティングインジケーター更新エラー:', error);
+    }
+  }
+
+  // リアルタイム履歴パネル作成
+  createRealtimeHistoryPanel() {
+    // 既存のパネルを削除
+    const existingPanel = document.getElementById('morse-realtime-panel');
+    if (existingPanel) {
+      existingPanel.remove();
+    }
+
+    // 最新の5件のみ表示
+    const recentSignals = this.realtimeSignals.slice(0, 5);
+    if (recentSignals.length === 0) return;
+
+    try {
+      const panel = document.createElement('div');
+      panel.id = 'morse-realtime-panel';
+      panel.style.cssText = `
+        position: fixed !important;
+        top: 70px !important;
+        right: 20px !important;
+        background: rgba(17, 24, 39, 0.95) !important;
+        border: 1px solid rgba(34, 211, 238, 0.5) !important;
+        border-radius: 12px !important;
+        padding: 12px !important;
+        color: #e5e7eb !important;
+        font-family: ui-sans-serif, system-ui, sans-serif !important;
+        font-size: 12px !important;
+        font-weight: 600 !important;
+        z-index: 2147483645 !important;
+        backdrop-filter: blur(10px) !important;
+        box-shadow: 0 10px 30px rgba(0, 0, 0, 0.3) !important;
+        pointer-events: none !important;
+        max-width: 200px !important;
+      `;
+
+      // ヘッダー
+      const header = document.createElement('div');
+      header.style.cssText = `
+        color: #22d3ee !important;
+        font-size: 11px !important;
+        margin-bottom: 8px !important;
+        text-align: center !important;
+      `;
+      header.textContent = `📊 リアルタイム履歴 (${this.onlineUsers}人)`;
+      panel.appendChild(header);
+
+      // 履歴表示
+      const historyContainer = document.createElement('div');
+      historyContainer.style.cssText = `
+        display: flex !important;
+        flex-wrap: wrap !important;
+        gap: 4px !important;
+        justify-content: center !important;
+      `;
+
+      recentSignals.forEach((signal, index) => {
+        const signalDiv = document.createElement('div');
+        const isOwnSignal = signal.userId === this.userId;
+        
+        signalDiv.style.cssText = `
+          display: flex !important;
+          flex-direction: column !important;
+          align-items: center !important;
+          margin: 2px !important;
+        `;
+
+        // 数字表示
+        const numberDiv = document.createElement('div');
+        numberDiv.style.cssText = `
+          width: 24px !important;
+          height: 24px !important;
+          border-radius: 6px !important;
+          display: flex !important;
+          align-items: center !important;
+          justify-content: center !important;
+          font-weight: 800 !important;
+          font-size: 11px !important;
+          border: 1px solid ${isOwnSignal ? 'rgba(34,211,238,0.7)' : 'rgba(148,163,184,0.4)'} !important;
+          background: ${isOwnSignal ? 'rgba(34,211,238,0.15)' : 'rgba(2,6,23,0.8)'} !important;
+          color: ${isOwnSignal ? '#22d3ee' : '#e5e7eb'} !important;
+          position: relative !important;
+        `;
+        numberDiv.textContent = signal.value;
+
+        // 自分のマーク
+        if (isOwnSignal) {
+          const mark = document.createElement('div');
+          mark.style.cssText = `
+            position: absolute !important;
+            top: -4px !important;
+            right: -4px !important;
+            width: 8px !important;
+            height: 8px !important;
+            border-radius: 50% !important;
+            background: #22d3ee !important;
+            border: 1px solid white !important;
+          `;
+          numberDiv.appendChild(mark);
+        }
+
+        // ユーザー表示
+        const userLabel = document.createElement('div');
+        userLabel.style.cssText = `
+          font-size: 8px !important;
+          margin-top: 2px !important;
+          color: ${isOwnSignal ? '#22d3ee' : '#9ca3af'} !important;
+        `;
+        userLabel.textContent = isOwnSignal ? '自分' : '他人';
+
+        signalDiv.appendChild(numberDiv);
+        signalDiv.appendChild(userLabel);
+        historyContainer.appendChild(signalDiv);
+      });
+
+      panel.appendChild(historyContainer);
+
+      const container = document.body || document.documentElement;
+      container.appendChild(panel);
+
+      console.log('MorseTapCounter: リアルタイム履歴パネル作成成功');
+    } catch (error) {
+      console.error('MorseTapCounter: リアルタイム履歴パネル作成エラー:', error);
+    }
+  }
+
+  // リアルタイム表示削除
+  removeRealtimeDisplay() {
+    const panel = document.getElementById('morse-realtime-panel');
+    if (panel) {
+      panel.remove();
     }
   }
 }
