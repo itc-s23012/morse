@@ -409,7 +409,7 @@ class MorseTapCounter {
       backdrop-filter: blur(10px) !important;
       box-shadow: 0 10px 30px rgba(0, 0, 0, 0.3) !important;
       transition: all 0.3s ease !important;
-      pointer-events: none !important;
+      pointer-events: auto !important;
     `;
     
     // 初期状態の表示を設定
@@ -454,29 +454,49 @@ class MorseTapCounter {
       // 基本情報
       const basicInfo = `タップ: ${this.tapCount} | 結果: ${this.currentValue || '-'}${onlineInfo}${realtimeInfo}`;
 
-      indicator.innerHTML = `
-        <div style="
-          display: flex !important;
-          align-items: center !important;
-          gap: 8px !important;
-          font-weight: 600 !important;
-          font-size: 11px !important;
-        ">
-          <span style="color: #22d3ee !important;">${statusText}</span>
-          <span style="color: #e5e7eb !important;">${basicInfo}</span>
-          ${this.realtimeSignals.length > 0 ? `<button onclick="window.morseCounter.toggleHistoryDisplay()" style="
-            background: rgba(34, 211, 238, 0.2) !important;
-            border: 1px solid rgba(34, 211, 238, 0.4) !important;
-            color: #22d3ee !important;
-            padding: 2px 6px !important;
-            border-radius: 4px !important;
-            font-size: 9px !important;
-            cursor: pointer !important;
-            font-weight: 600 !important;
-            pointer-events: auto !important;
-          ">履歴表示</button>` : ''}
-        </div>
+      // 基本情報の表示部分
+      const contentDiv = document.createElement('div');
+      contentDiv.style.cssText = `
+        display: flex !important;
+        align-items: center !important;
+        gap: 8px !important;
+        font-weight: 600 !important;
+        font-size: 11px !important;
       `;
+      
+      contentDiv.innerHTML = `
+        <span style="color: #22d3ee !important;">${statusText}</span>
+        <span style="color: #e5e7eb !important;">${basicInfo}</span>
+      `;
+      
+      // 履歴表示ボタンを追加（履歴がある場合のみ）
+      if (this.realtimeSignals.length > 0) {
+        const historyBtn = document.createElement('button');
+        historyBtn.style.cssText = `
+          background: rgba(34, 211, 238, 0.2) !important;
+          border: 1px solid rgba(34, 211, 238, 0.4) !important;
+          color: #22d3ee !important;
+          padding: 2px 6px !important;
+          border-radius: 4px !important;
+          font-size: 9px !important;
+          cursor: pointer !important;
+          font-weight: 600 !important;
+          pointer-events: auto !important;
+          outline: none !important;
+        `;
+        historyBtn.textContent = '履歴表示';
+        historyBtn.onclick = (e) => {
+          e.preventDefault();
+          e.stopPropagation();
+          console.log('MorseTapCounter: 履歴ボタンクリック');
+          this.toggleHistoryDisplay();
+        };
+        contentDiv.appendChild(historyBtn);
+      }
+      
+      // インジケーターの内容をクリア
+      indicator.innerHTML = '';
+      indicator.appendChild(contentDiv);
 
       // 背景色とボーダーを更新
       indicator.style.background = backgroundColor;
@@ -596,12 +616,14 @@ class MorseTapCounter {
 
   // 履歴表示の切り替え
   toggleHistoryDisplay() {
-    console.log('MorseTapCounter: 履歴表示切り替え - 現在:', this.isHistoryVisible);
+    console.log('MorseTapCounter: 履歴表示切り替え開始 - 現在:', this.isHistoryVisible, '履歴数:', this.realtimeSignals.length);
     this.isHistoryVisible = !this.isHistoryVisible;
     
     if (this.isHistoryVisible) {
+      console.log('MorseTapCounter: 履歴パネルを表示します');
       this.showHistoryPanel();
     } else {
+      console.log('MorseTapCounter: 履歴パネルを非表示にします');
       this.hideHistoryPanel();
     }
   }
@@ -668,9 +690,15 @@ class MorseTapCounter {
       font-size: 10px !important;
       cursor: pointer !important;
       font-weight: 600 !important;
+      outline: none !important;
     `;
     closeBtn.textContent = '✕ 閉じる';
-    closeBtn.onclick = () => this.toggleHistoryDisplay();
+    closeBtn.onclick = (e) => {
+      e.preventDefault();
+      e.stopPropagation();
+      console.log('MorseTapCounter: 履歴パネル閉じるボタンクリック');
+      this.toggleHistoryDisplay();
+    };
 
     header.appendChild(title);
     header.appendChild(closeBtn);
